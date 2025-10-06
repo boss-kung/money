@@ -1,45 +1,90 @@
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>สมุดรายรับรายจ่าย — One File (CORS Fixed + Dedup)</title>
+<title>Money Tracker</title>
 <style>
-  :root { --bg:#0b0b0f; --card:#14141a; --muted:#8b8b94; --text:#eaeaf1; --accent:#5ee391; --danger:#ff6b6b; }
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
-  header{padding:16px 20px;display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #222}
+  :root { --bg:#0b0b0f; --card:#14141a; --muted:#8b8b94; --text:#eaeaf1; --accent:#5ee391; --danger:#ff6b6b; --line:#23232a; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+  header{padding:16px 20px;display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #222;position:sticky;top:0;background:rgba(11,11,15,.85);backdrop-filter:saturate(120%) blur(6px);z-index:50}
   h1{font-size:20px;margin:0}
   .right{display:flex;gap:8px;align-items:center}
   button, select, input{font:inherit}
   button{padding:8px 12px;border-radius:12px;border:1px solid #333;background:#1d1d25;color:var(--text);cursor:pointer}
   button.primary{background:#1c2a21;border-color:#284130}
   button.ghost{background:transparent;border-color:#333}
+  button.warn{background:#2a1414;border-color:#402828;color:#ffb3b3}
   button:disabled{opacity:.6;cursor:not-allowed}
   .status{font-size:12px;color:var(--muted)}
-  .wrap{padding:16px;max-width:1100px;margin:0 auto}
-  .tabs{display:flex;gap:8px;margin:12px 0 16px}
+  .wrap{padding:16px;max-width:1200px;margin:0 auto}
+  .tabs{display:flex;gap:8px;margin:12px 0 16px;flex-wrap:wrap}
   .tabs button{border-radius:999px;padding:8px 14px}
   .grid{display:grid;gap:12px}
   .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
   .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .card{background:var(--card);border:1px solid #23232a;border-radius:16px;padding:14px}
+  .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
   .card h2{margin:0 0 10px 0;font-size:16px}
   label{font-size:12px;color:var(--muted);display:block;margin:8px 0 4px}
-  input, select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2a2a33;background:#111018;color:var(--text)}
+  input, select, textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2a2a33;background:#111018;color:var(--text)}
+  textarea{min-height:80px;resize:vertical}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{padding:10px;border-bottom:1px solid #23232a;text-align:left}
+  th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
   td.num{text-align:right}
   .ok{color:var(--accent)} .bad{color:var(--danger)}
   .muted{color:var(--muted)}
-  .pill{display:inline-block;border:1px solid #333;border-radius:999px;padding:2px 8px;font-size:12px}
-  @media (max-width:900px){ .g3{grid-template-columns:1fr} .g2{grid-template-columns:1fr} header{flex-wrap:wrap;gap:8px} }
+  .pill{display:inline-block;border:1px solid #333;border-radius:999px;padding:6px 12px;font-size:13px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .grow{flex:1 1 auto}
+  .avatar{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:#1b1b22;border:1px solid #2b2b33;font-size:16px}
+  .avatar img{width:100%;height:100%;object-fit:cover;border-radius:8px;display:block}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{border:1px solid #333;padding:4px 8px;border-radius:999px;font-size:12px}
+  .toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:8px 0}
+  .badge{font-size:11px;border:1px solid #333;padding:2px 6px;border-radius:999px;color:var(--muted)}
+  .bar{height:8px;background:#0e0e14;border:1px solid #1f1f26;border-radius:999px;overflow:hidden}
+  .bar > span{display:block;height:100%;background:linear-gradient(90deg,#52d384,#5ee391);}
+  .help{font-size:12px;color:var(--muted)}
+  .danger{color:var(--danger)}
+  .center{display:grid;place-items:center}
+  .stack{display:flex;flex-direction:column;gap:8px}
+  .nowrap{white-space:nowrap}
+  .tac{text-align:center}
+  .table-wrap{overflow:auto}
+  .link{color:#9ad7ff;text-decoration:underline;cursor:pointer}
+  .sep{height:1px;background:var(--line);margin:8px 0}
+  /* Modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:100}
+  .modal{width:min(560px,100%);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+  .modal h3{margin:0 0 8px 0}
+  .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+  /* Emoji picker */
+  .emoji-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:8px;background:#0f0f15}
+  .emoji-btn{font-size:18px;background:#15151c;border:1px solid #2a2a33;border-radius:10px;cursor:pointer;padding:6px}
+  .emoji-btn:hover{transform:translateY(-1px)}
+  /* Responsive */
+  @media (max-width:1100px){ .g4{grid-template-columns:repeat(2,1fr)} }
+  @media (max-width:900px){ .g3{grid-template-columns:1fr} .g2{grid-template-columns:1fr} .g4{grid-template-columns:1fr} header{flex-wrap:wrap;gap:8px} }
 </style>
 </head>
 <body>
 <header>
-  <h1>สมุดรายรับรายจ่าย (One File + Auto Sync)</h1>
+  <h1>สมุดรายรับรายจ่าย (Feature Expansion v1)</h1>
   <div class="right">
+    <div class="row">
+      <span class="badge">ช่วงเวลา</span>
+      <select id="dashRange" class="pill">
+        <option value="thisMonth">เดือนนี้</option>
+        <option value="lastMonth">เดือนที่แล้ว</option>
+        <option value="thisYear">ปีนี้</option>
+        <option value="custom">กำหนดเอง…</option>
+      </select>
+      <input id="dashFrom" type="date" style="display:none">
+      <span style="display:none">–</span>
+      <input id="dashTo" type="date" style="display:none">
+    </div>
     <button id="btnSync" class="ghost">ซิงค์</button>
     <div id="syncStatus" class="status">สถานะ: idle</div>
     <button id="btnExport" class="ghost">ส่งออก</button>
@@ -53,17 +98,21 @@
   <div class="tabs">
     <button class="pill" data-tab="dashboard">แดชบอร์ด</button>
     <button class="pill" data-tab="wallets">กระเป๋าเงิน</button>
+    <button class="pill" data-tab="transactions">รายการ</button>
+    <button class="pill" data-tab="categories">หมวด</button>
+    <button class="pill" data-tab="platforms">แพลตฟอร์ม/ร้าน</button>
     <button class="pill" data-tab="add">เพิ่มรายการ</button>
     <button class="pill" data-tab="settings">ตั้งค่า</button>
   </div>
 
+  <!-- DASHBOARD -->
   <section id="tab-dashboard" class="grid g3">
     <div class="card">
-      <h2>รายรับเดือนนี้</h2>
+      <h2>รายรับในช่วงที่เลือก</h2>
       <div id="sumIncome" style="font-size:28px;font-weight:700">฿ 0.00</div>
     </div>
     <div class="card">
-      <h2>รายจ่ายเดือนนี้</h2>
+      <h2>รายจ่ายในช่วงที่เลือก</h2>
       <div id="sumExpense" style="font-size:28px;font-weight:700">฿ 0.00</div>
     </div>
     <div class="card">
@@ -71,14 +120,20 @@
       <div id="sumNet" style="font-size:28px;font-weight:700">฿ 0.00</div>
     </div>
 
-    <div class="card g3" style="grid-column:1/-1">
-      <h2>กระเป๋าทั้งหมด</h2>
-      <div id="walletList" class="grid g3"></div>
+    <div class="card" style="grid-column:1/-1">
+      <div class="toolbar">
+        <h2>กระเป๋าทั้งหมด</h2>
+        <span class="help">คลิก ✏️ เพื่อแก้ไข / 🗑 เพื่อลบ</span>
+      </div>
+      <div id="walletList" class="grid g4"></div>
     </div>
 
     <div class="card" style="grid-column:1/-1">
-      <h2>รายการล่าสุด</h2>
-      <div style="overflow:auto">
+      <div class="toolbar">
+        <h2>รายการล่าสุด (ตามช่วงเวลา)</h2>
+        <span class="help">แสดง 20 รายการล่าสุด</span>
+      </div>
+      <div class="table-wrap">
         <table>
           <thead><tr><th>วันที่</th><th>ประเภท</th><th>จาก</th><th>ไป</th><th>หมวด</th><th>แพลตฟอร์ม</th><th class="num">จำนวน</th><th>โน้ต</th></tr></thead>
           <tbody id="txTable"></tbody>
@@ -87,9 +142,14 @@
     </div>
   </section>
 
+  <!-- WALLETS -->
   <section id="tab-wallets" class="grid g2" style="display:none">
     <div class="card">
-      <h2>เพิ่มกระเป๋า</h2>
+      <h2>เพิ่ม/แก้ไขกระเป๋า</h2>
+      <div class="row">
+        <div class="avatar" id="wIconPreview">💼</div>
+        <button class="ghost" id="btnPickWalletEmoji">เลือกไอคอน</button>
+      </div>
       <label>ชื่อกระเป๋า</label>
       <input id="wName" placeholder="เช่น บัญชีหลัก" />
       <label>ประเภท</label>
@@ -108,11 +168,16 @@
         <label>วงเงินรวม</label>
         <input id="wLimit" type="number" placeholder="50000" />
       </div>
-      <button id="btnAddWallet" class="primary" style="margin-top:8px">บันทึก</button>
+      <div class="row" style="margin-top:8px">
+        <button id="btnAddWallet" class="primary">บันทึกเป็นกระเป๋าใหม่</button>
+        <button id="btnUpdateWallet" class="ghost" disabled>อัปเดตกระเป๋า</button>
+        <button id="btnCancelEditWallet" class="ghost" disabled>ยกเลิก</button>
+      </div>
+      <div class="help">หมายเหตุ: กระเป๋าแบบบัตรเครดิตจะแสดง “วงเงินคงเหลือ” ไม่ใช่ยอดเงินสด</div>
     </div>
 
     <div class="card">
-      <h2>ชำระบัตรเครดิต</h2>
+      <h2>การชำระบัตรเครดิต</h2>
       <label>จากกระเป๋า</label>
       <select id="payFrom"></select>
       <label>ไปยังบัตรเครดิต</label>
@@ -120,9 +185,117 @@
       <label>จำนวนเงิน</label>
       <input id="payAmt" type="number" placeholder="0" />
       <button id="btnPay" class="primary" style="margin-top:8px">บันทึก</button>
+
+      <div class="sep"></div>
+      <h2>สร้างแผน “ผ่อนชำระ”</h2>
+      <label>ใช้บัตร (กระเป๋าเครดิต)</label>
+      <select id="instWallet"></select>
+      <label>รายละเอียดรายการ (แสดงในโน้ต)</label>
+      <input id="instDesc" placeholder="ผ่อน iPhone 12" />
+      <div class="row">
+        <div class="grow">
+          <label>ยอดรวม</label>
+          <input id="instTotal" type="number" placeholder="12000" />
+        </div>
+        <div class="grow">
+          <label>จำนวนงวด (เดือน)</label>
+          <input id="instMonths" type="number" placeholder="6" />
+        </div>
+      </div>
+      <label>เริ่มตัดงวดแรก (วันที่)</label>
+      <input id="instStart" type="date" />
+      <button id="btnCreatePlan" class="primary" style="margin-top:8px">สร้างแผนผ่อน</button>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <div class="toolbar">
+        <h2>แผนผ่อน (กำลังดำเนินการ)</h2>
+        <span class="help">ระบบจะบันทึกค่าใช้จ่ายงวดอัตโนมัติเมื่อถึงกำหนด</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>บัตร</th><th>รายละเอียด</th><th>ยอด/เดือน</th><th>เริ่ม</th><th>ชำระแล้ว</th><th>งวดถัดไป</th><th>สถานะ</th><th>การจัดการ</th></tr></thead>
+          <tbody id="planTable"></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
+  <!-- TRANSACTIONS -->
+  <section id="tab-transactions" style="display:none">
+    <div class="card">
+      <div class="toolbar">
+        <h2>รายการทั้งหมด</h2>
+        <div class="row">
+          <select id="txFilterField">
+            <option value="date">วันที่ (YYYY-MM-DD)</option>
+            <option value="type">ประเภท (income/expense/transfer)</option>
+            <option value="wallet">จากกระเป๋า</option>
+            <option value="to">ไปยังกระเป๋า</option>
+            <option value="category">หมวด</option>
+            <option value="platform">แพลตฟอร์ม</option>
+            <option value="amount">จำนวน (ตัวเลข)</option>
+            <option value="note">โน้ต</option>
+          </select>
+          <input id="txFilterQuery" placeholder="พิมพ์คำค้น…" />
+          <button id="btnClearFilter" class="ghost">ล้าง</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>วันที่</th><th>ประเภท</th><th>จาก</th><th>ไป</th><th>หมวด</th><th>แพลตฟอร์ม</th><th class="num">จำนวน</th><th>โน้ต</th><th>จัดการ</th></tr></thead>
+          <tbody id="txAllTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORIES -->
+  <section id="tab-categories" class="grid g2" style="display:none">
+    <div class="card">
+      <h2>เพิ่มหมวด</h2>
+      <div class="row">
+        <div class="avatar" id="catIconPreview">🏷️</div>
+        <button class="ghost" id="btnPickCatEmoji">เลือกไอคอน</button>
+      </div>
+      <label>ชื่อหมวด</label>
+      <input id="catName" placeholder="อาหาร / เงินเดือน / เดินทาง" />
+      <div class="row" style="margin-top:8px">
+        <button id="btnAddCat" class="primary">เพิ่มหมวด</button>
+        <button id="btnUpdateCat" class="ghost" disabled>อัปเดตหมวด</button>
+        <button id="btnCancelEditCat" class="ghost" disabled>ยกเลิก</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>หมวดทั้งหมด</h2>
+      <div id="catList" class="grid g4"></div>
+    </div>
+  </section>
+
+  <!-- PLATFORMS -->
+  <section id="tab-platforms" class="grid g2" style="display:none">
+    <div class="card">
+      <h2>เพิ่มแพลตฟอร์ม/ร้าน</h2>
+      <div class="row">
+        <div class="avatar" id="platIconPreview">🛍️</div>
+        <button class="ghost" id="btnPickPlatEmoji">เลือกไอคอน</button>
+        <input id="platIconFile" type="file" accept="image/*" class="ghost" />
+      </div>
+      <label>ชื่อแพลตฟอร์ม/ร้าน</label>
+      <input id="platName" placeholder="Shopee / ร้าน A สาขา B" />
+      <div class="row" style="margin-top:8px">
+        <button id="btnAddPlat" class="primary">เพิ่มแพลตฟอร์ม</button>
+        <button id="btnUpdatePlat" class="ghost" disabled>อัปเดต</button>
+        <button id="btnCancelEditPlat" class="ghost" disabled>ยกเลิก</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>แพลตฟอร์ม/ร้าน ทั้งหมด</h2>
+      <div id="platList" class="grid g4"></div>
+    </div>
+  </section>
+
+  <!-- ADD TRANSACTION -->
   <section id="tab-add" class="grid g2" style="display:none">
     <div class="card">
       <h2>เพิ่มรายการ</h2>
@@ -144,9 +317,11 @@
       <input id="tAmt" type="number" />
       <div id="blkCatPlat">
         <label>หมวด</label>
-        <input id="tCat" placeholder="อาหาร / เงินเดือน / อื่นๆ" />
+        <input id="tCat" list="dlCats" placeholder="เลือกหมวดหรือพิมพ์ใหม่" />
+        <datalist id="dlCats"></datalist>
         <label>แพลตฟอร์ม/ร้าน</label>
-        <input id="tPlat" placeholder="Shopee / ร้านค้าในห้าง" />
+        <input id="tPlat" list="dlPlats" placeholder="เลือกแพลตฟอร์มหรือพิมพ์ใหม่" />
+        <datalist id="dlPlats"></datalist>
       </div>
       <label>โน้ต</label>
       <input id="tNote" placeholder="โน้ต (ถ้ามี)" />
@@ -160,20 +335,22 @@
         <li>กดแท็บ <b>เพิ่มรายการ</b> เพื่อจดว่า วันนี้ได้เงิน หรือใช้เงินเท่าไร</li>
         <li>ถ้าใช้ <b>บัตรเครดิต</b> ให้เลือกกระเป๋าเป็นบัตรนั้น (จะหักจากวงเงิน ไม่ได้หักเงินสด)</li>
         <li>ถ้า <b>จ่ายบัตรเครดิต</b> ไปที่แท็บ <b>กระเป๋าเงิน</b> แล้วกรอก “ชำระบัตรเครดิต”</li>
-        <li><b>ซิงค์อัตโนมัติ</b>: แอปจะอัปขึ้นชีตเองเมื่อคุณแก้ข้อมูล และดึงลงมาอัตโนมัติเมื่อเปิดครั้งแรก</li>
+        <li><b>แผนผ่อน</b> สร้างในแท็บกระเป๋า ระบบจะหักอัตโนมัติทุกเดือน</li>
+        <li><b>ซิงค์อัตโนมัติ</b>: แอปจะอัปขึ้นชีตเองเมื่อคุณแก้ข้อมูล และดึงลงมาเมื่อเปิดครั้งแรก</li>
       </ol>
     </div>
   </section>
 
+  <!-- SETTINGS -->
   <section id="tab-settings" style="display:none">
     <div class="card">
       <h2>การซิงค์กับ Google Sheets</h2>
-      <p class="muted">แก้ค่าได้ตามต้องการ</p>
+      <p class="muted">ค่าเริ่มต้นถูกเติมไว้แล้ว สามารถแก้ได้</p>
       <label>GS BASE URL</label>
       <input id="gsUrl" />
       <label>API KEY</label>
       <input id="gsKey" />
-      <div style="display:flex;gap:8px;margin-top:8px">
+      <div class="row" style="margin-top:8px">
         <button id="btnSaveSync" class="primary">บันทึก & ทดสอบซิงค์</button>
         <button id="btnClear" class="ghost">ล้างข้อมูลในเครื่อง</button>
       </div>
@@ -181,28 +358,65 @@
   </section>
 </div>
 
+<!-- Modal (generic) -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3 id="modalTitle">แก้ไข</h3>
+    <div id="modalBody" class="stack"></div>
+    <div class="actions">
+      <button id="modalCancel" class="ghost">ยกเลิก</button>
+      <button id="modalOk" class="primary">ตกลง</button>
+    </div>
+  </div>
+</div>
+
+<!-- Emoji Picker Modal -->
+<div class="modal-backdrop" id="emojiBackdrop">
+  <div class="modal">
+    <h3>เลือกอีโมจิ</h3>
+    <div class="emoji-grid" id="emojiGrid"></div>
+    <div class="actions">
+      <button id="emojiClose" class="ghost">ปิด</button>
+    </div>
+  </div>
+</div>
+
 <script>
-// Prefilled
+/* -------------------- Prefilled (เหมือนไฟล์เดิม) -------------------- */
 const PREFILLED_URL = "https://script.google.com/macros/s/AKfycbzHnFO495JmY8oI_1qoygD6-55pmoZg-eeHzoLUQk0XNlbRKahyRbXmW-AIRLaQbtY1/exec";
 const PREFILLED_KEY = "boss_2f8c3a1e9d9b4d7abcf1e9f3d8a4e6c1";
 
-// Utils
+/* -------------------- Utils -------------------- */
 const fmt = n => (Number(n)||0).toLocaleString('th-TH',{minimumFractionDigits:2, maximumFractionDigits:2});
 const todayStr = () => new Date().toISOString().slice(0,10);
 const nowISO = () => new Date().toISOString();
+const firstDayThisMonth = () => { const d=new Date(); d.setDate(1); return d; };
+const lastDayThisMonth = () => new Date(new Date().getFullYear(), new Date().getMonth()+1, 0);
 
-// Storage
-const LS_KEY = 'income_expense_onefile_ready_v3';
+/* -------------------- Storage -------------------- */
+const LS_KEY = 'income_expense_onefile_ready_v4_featureexp';
 const load = () => { try{ return JSON.parse(localStorage.getItem(LS_KEY)) || null }catch(e){return null} };
 const save = (s) => localStorage.setItem(LS_KEY, JSON.stringify(s));
 
+/* -------------------- Default State -------------------- */
 const defaultState = () => ({
   cfg: { gsUrl: PREFILLED_URL, gsKey: PREFILLED_KEY },
   wallets: [
-    { id: crypto.randomUUID(), name: 'บัญชีหลัก', type: 'bank', balance: 30000, updatedAt: nowISO() },
-    { id: crypto.randomUUID(), name: 'บัตรเครดิต A', type: 'credit', creditLimit: 50000, availableCredit: 50000, updatedAt: nowISO() },
+    { id: crypto.randomUUID(), name: 'บัญชีหลัก', type: 'bank', icon:'💼', balance: 30000, updatedAt: nowISO() },
+    { id: crypto.randomUUID(), name: 'บัตรเครดิต A', type: 'credit', icon:'💳', creditLimit: 50000, availableCredit: 50000, updatedAt: nowISO() },
+  ],
+  categories: [
+    { id: crypto.randomUUID(), name: 'อาหาร', icon: '🍜', updatedAt: nowISO() },
+    { id: crypto.randomUUID(), name: 'เดินทาง', icon: '🚌', updatedAt: nowISO() },
+    { id: crypto.randomUUID(), name: 'เงินเดือน', icon: '💼', updatedAt: nowISO() },
+  ],
+  platforms: [
+    { id: crypto.randomUUID(), name: 'Shopee', icon: '🛍️', updatedAt: nowISO() },
+    { id: crypto.randomUUID(), name: '7-Eleven', icon: '🏪', updatedAt: nowISO() },
   ],
   transactions: [],
+  installmentPlans: [], // kept in sync with Google Sheet 'plans' entity
+  ui: { editingWalletId: null, editingCatId:null, editingPlatId:null, editingTxId:null, dash:{mode:'thisMonth', from:null, to:null} }
 });
 
 let state = load() || defaultState();
@@ -210,7 +424,7 @@ let debounceTimer = null;
 let syncStatus = 'idle';
 function setSyncStatus(s){ syncStatus = s; document.getElementById('syncStatus').textContent = 'สถานะ: ' + s; }
 
-// Google Sheets API (CORS-safe)
+/* -------------------- Google Sheets API (CORS-safe, compatible) -------------------- */
 function withQuery(base, params){
   const url = new URL(base);
   Object.entries(params||{}).forEach(([k,v])=>{ if(v!==undefined && v!==null && v!=='') url.searchParams.set(k, String(v)); });
@@ -243,11 +457,12 @@ async function gsPullAll(){
   return { wallets, transactions, installmentPlans: plans||[] };
 }
 async function gsPushAll(s){
-  const payload = { wallets: s.wallets, transactions: s.transactions, plans: [] };
+  // push categories/platforms only locally (to avoid breaking remote script). Push plans as 'plans'.
+  const payload = { wallets: s.wallets, transactions: s.transactions, plans: s.installmentPlans || [] };
   return gsFetch('bulk','replaceAll', payload);
 }
 
-// Merge helpers
+/* -------------------- Merge helpers -------------------- */
 function mergeByIdLWW(localArr=[], remoteArr=[]){
   const map = new Map();
   const put = (x)=>{ if(!x?.id) return; const old=map.get(x.id); if(!old){ map.set(x.id,x); return; }
@@ -263,7 +478,7 @@ function dedupWalletsByNameType(list=[]){
     if (!map.has(k)) { map.set(k, w); continue; }
     const a = map.get(k);
     const ta = Date.parse(a.updatedAt||0)||0, tb = Date.parse(w.updatedAt||0)||0;
-    if (tb > ta) map.set(k, w); // last-write-wins
+    if (tb > ta) map.set(k, w);
   }
   return Array.from(map.values());
 }
@@ -272,18 +487,21 @@ function mergeStateLWW(localS, remoteS){
     ...localS,
     wallets: mergeByIdLWW(localS.wallets, remoteS.wallets),
     transactions: mergeByIdLWW(localS.transactions, remoteS.transactions),
+    installmentPlans: mergeByIdLWW(localS.installmentPlans||[], remoteS.installmentPlans||[]),
   };
   merged.wallets = dedupWalletsByNameType(merged.wallets);
   return merged;
 }
 
-// Recalc balances
+/* -------------------- Calculations -------------------- */
 function recalcBalances(s){
   const wallets = s.wallets.map(w=>({...w}));
   wallets.forEach(w=>{
     if(w.type==='credit'){
       if(typeof w.creditLimit!=='number') w.creditLimit=0;
       if(typeof w.availableCredit!=='number') w.availableCredit=w.creditLimit;
+    } else {
+      if(typeof w.balance!=='number') w.balance = 0;
     }
   });
   const txs = [...s.transactions].sort((a,b)=> new Date(a.date)-new Date(b.date));
@@ -313,60 +531,267 @@ function recalcBalances(s){
   return { ...s, wallets };
 }
 
-// Render
-function render(){
-  const start = new Date(); start.setDate(1);
-  const end = new Date(start.getFullYear(), start.getMonth()+1, 0);
-  const inMonth = state.transactions.filter(t=>{ const d=new Date(t.date); return d>=start && d<=end; });
-  const income = inMonth.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount||0),0);
-  const expense = inMonth.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount||0),0);
+/* -------------------- Timeframe helpers -------------------- */
+function getRange(){
+  const mode = state.ui?.dash?.mode || 'thisMonth';
+  let from, to;
+  if(mode==='thisMonth'){ from = firstDayThisMonth(); to = lastDayThisMonth(); }
+  else if(mode==='lastMonth'){ const d=new Date(); const first=new Date(d.getFullYear(), d.getMonth()-1, 1); const last=new Date(d.getFullYear(), d.getMonth(), 0); from=first; to=last; }
+  else if(mode==='thisYear'){ const d=new Date(); from=new Date(d.getFullYear(),0,1); to=new Date(d.getFullYear(),11,31); }
+  else if(mode==='custom'){ from = new Date(state.ui?.dash?.from || todayStr()); to = new Date(state.ui?.dash?.to || todayStr()); }
+  return {from,to};
+}
+function inRange(dateStr){
+  const {from,to} = getRange();
+  const d = new Date(dateStr);
+  d.setHours(0,0,0,0);
+  return d>=from && d<=to;
+}
+
+/* -------------------- Render -------------------- */
+function renderDatalists(){
+  const dlCats = document.getElementById('dlCats'); dlCats.innerHTML='';
+  state.categories.forEach(c=>{
+    const opt = document.createElement('option'); opt.value=c.name; dlCats.appendChild(opt);
+  });
+  const dlPlats = document.getElementById('dlPlats'); dlPlats.innerHTML='';
+  state.platforms.forEach(p=>{
+    const opt = document.createElement('option'); opt.value=p.name; dlPlats.appendChild(opt);
+  });
+}
+function iconHtml(icon){
+  // icon: emoji string or dataURL image
+  if(!icon) return '<div class="avatar">📦</div>';
+  if(String(icon).startsWith('data:image')) return `<div class="avatar"><img src="${icon}" alt=""></div>`;
+  return `<div class="avatar">${icon}</div>`;
+}
+function renderDashboard(){
+  const txInRange = state.transactions.filter(t=>inRange(t.date));
+  const income = txInRange.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount||0),0);
+  const expense = txInRange.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount||0),0);
   document.getElementById('sumIncome').textContent = '฿ '+fmt(income);
   document.getElementById('sumExpense').textContent = '฿ '+fmt(expense);
   const net = income - expense;
   const elNet = document.getElementById('sumNet'); elNet.textContent='฿ '+fmt(net); elNet.className = net>=0 ? 'ok' : 'bad';
 
   const wl = document.getElementById('walletList'); wl.innerHTML='';
-  state.wallets.forEach(w=>{ const div=document.createElement('div'); div.className='card';
+  state.wallets.forEach(w=>{
+    const div=document.createElement('div'); div.className='card';
     div.innerHTML = `
-      <div style="font-weight:700;margin-bottom:6px">${w.name}</div>
-      ${w.type==='credit' ? `
-        <div>วงเงินรวม: ฿ ${fmt(w.creditLimit||0)}</div>
-        <div>คงเหลือ: <b>฿ ${fmt(w.availableCredit||0)}</b></div>
-      ` : `
-        <div>ยอดคงเหลือ: <b>฿ ${fmt(w.balance||0)}</b></div>
-      `}
-      <div class="muted" style="margin-top:6px">ชนิด: ${w.type}</div>
-    `; wl.appendChild(div); });
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div class="row" style="gap:10px">
+          ${iconHtml(w.icon)}
+          <div>
+            <div style="font-weight:700;margin-bottom:4px">${w.name}</div>
+            <div class="muted">ชนิด: ${w.type}</div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="ghost" data-act="edit" data-id="${w.id}">✏️</button>
+          <button class="warn" data-act="del" data-id="${w.id}">🗑</button>
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        ${w.type==='credit'
+          ? `<div>วงเงินรวม: ฿ ${fmt(w.creditLimit||0)}</div>
+             <div>คงเหลือ: <b>฿ ${fmt(w.availableCredit||0)}</b></div>`
+          : `<div>ยอดคงเหลือ: <b>฿ ${fmt(w.balance||0)}</b></div>`}
+      </div>
+    `;
+    wl.appendChild(div);
+  });
+  wl.querySelectorAll('button[data-act="edit"]').forEach(btn=>btn.addEventListener('click',()=>startEditWallet(btn.dataset.id)));
+  wl.querySelectorAll('button[data-act="del"]').forEach(btn=>btn.addEventListener('click',()=>deleteWallet(btn.dataset.id)));
+
   const body = document.getElementById('txTable'); body.innerHTML='';
-  const latest = [...state.transactions].sort((a,b)=> new Date(b.date)-new Date(a.date)).slice(0,20);
-  latest.forEach(t=>{ const tr=document.createElement('tr');
+  const latest = txInRange.sort((a,b)=> new Date(b.date)-new Date(a.date)).slice(0,20);
+  latest.forEach(t=>{
+    const tr=document.createElement('tr');
     const from = state.wallets.find(w=>w.id===t.walletId);
     const to = state.wallets.find(w=>w.id===t.toWalletId);
     tr.innerHTML = `
       <td>${new Date(t.date).toLocaleDateString('th-TH')}</td>
       <td>${t.type}</td>
-      <td>${from?from.name:'-'}</td>
+      <td>${from?from.name:'(ลบแล้ว)'}</td>
       <td>${to?to.name:'-'}</td>
       <td>${t.category||'-'}</td>
       <td>${t.platform||'-'}</td>
       <td class="num">${t.type==='expense' ? '-฿ '+fmt(t.amount) : '฿ '+fmt(t.amount)}</td>
       <td>${t.note||''}</td>
-    `; body.appendChild(tr); });
+    `; body.appendChild(tr);
+  });
+}
+function renderWalletSelectors(){
   const selFrom = document.getElementById('tFrom'); selFrom.innerHTML='';
   const selTo = document.getElementById('tTo'); selTo.innerHTML='';
   const payFrom = document.getElementById('payFrom'); payFrom.innerHTML='';
   const payCard = document.getElementById('payCard'); payCard.innerHTML='';
+  const instWallet = document.getElementById('instWallet'); instWallet.innerHTML='';
   state.wallets.forEach(w=>{
     const opt=document.createElement('option'); opt.value=w.id; opt.textContent=w.name; selFrom.appendChild(opt.cloneNode(true));
     const opt2=document.createElement('option'); opt2.value=w.id; opt2.textContent=w.name; selTo.appendChild(opt2);
     const opt3=document.createElement('option'); opt3.value=w.id; opt3.textContent=w.name; if(w.type!=='credit') payFrom.appendChild(opt3);
-    const opt4=document.createElement('option'); opt4.value=w.id; opt4.textContent=w.name; if(w.type==='credit') payCard.appendChild(opt4);
+    const opt4=document.createElement('option'); opt4.value=w.id; opt4.textContent=w.name; if(w.type==='credit') { payCard.appendChild(opt4); instWallet.appendChild(opt4.cloneNode(true)); }
   });
+}
+function renderCategories(){
+  const list = document.getElementById('catList'); list.innerHTML='';
+  state.categories.forEach(c=>{
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML = `
+      <div class="row" style="justify-content:space-between">
+        <div class="row" style="gap:10px">
+          ${iconHtml(c.icon)}
+          <div>
+            <div style="font-weight:700">${c.name}</div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="ghost" data-act="edit" data-id="${c.id}">✏️</button>
+          <button class="warn" data-act="del" data-id="${c.id}">🗑</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+  list.querySelectorAll('button[data-act="edit"]').forEach(b=>b.addEventListener('click',()=>startEditCategory(b.dataset.id)));
+  list.querySelectorAll('button[data-act="del"]').forEach(b=>b.addEventListener('click',()=>deleteCategory(b.dataset.id)));
+}
+function renderPlatforms(){
+  const list = document.getElementById('platList'); list.innerHTML='';
+  state.platforms.forEach(p=>{
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML = `
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div class="row" style="gap:10px">
+          ${iconHtml(p.icon)}
+          <div><div style="font-weight:700">${p.name}</div></div>
+        </div>
+        <div class="row">
+          <button class="ghost" data-act="edit" data-id="${p.id}">✏️</button>
+          <button class="warn" data-act="del" data-id="${p.id}">🗑</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+  list.querySelectorAll('button[data-act="edit"]').forEach(b=>b.addEventListener('click',()=>startEditPlatform(b.dataset.id)));
+  list.querySelectorAll('button[data-act="del"]').forEach(b=>b.addEventListener('click',()=>deletePlatform(b.dataset.id)));
+}
+function renderPlans(){
+  const body = document.getElementById('planTable'); body.innerHTML='';
+  state.installmentPlans.filter(p=>p.active!==false).forEach(p=>{
+    const w = state.wallets.find(x=>x.id===p.walletId);
+    const tr=document.createElement('tr');
+    const prog = Math.min(100, Math.round((p.paidCount||0) / (p.months||1) * 100));
+    tr.innerHTML = `
+      <td>${w? w.name : '(ลบแล้ว)'}</td>
+      <td>${p.desc||'-'}</td>
+      <td class="num">฿ ${fmt(p.perMonth||0)}</td>
+      <td>${p.startDate||'-'}</td>
+      <td>
+        ${p.paidCount||0} / ${p.months||0}
+        <div class="bar" style="margin-top:6px"><span style="width:${prog}%"></span></div>
+      </td>
+      <td>${p.nextDue || '-'}</td>
+      <td>${prog>=100 ? '<span class="ok">เสร็จสิ้น</span>' : 'กำลังผ่อน'}</td>
+      <td class="nowrap">
+        <button class="ghost" data-act="force" data-id="${p.id}">หักงวดตอนนี้</button>
+        <button class="warn" data-act="cancel" data-id="${p.id}">ยกเลิก</button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+  body.querySelectorAll('button[data-act="force"]').forEach(b=>b.addEventListener('click',()=>postOneInstallment(b.dataset.id,true)));
+  body.querySelectorAll('button[data-act="cancel"]').forEach(b=>b.addEventListener('click',()=>cancelPlan(b.dataset.id)));
+}
+function renderTxTableAll(){
+  const body = document.getElementById('txAllTable'); body.innerHTML='';
+  const field = document.getElementById('txFilterField').value;
+  const q = (document.getElementById('txFilterQuery').value||'').trim().toLowerCase();
+  let rows = [...state.transactions];
+  if(q){
+    rows = rows.filter(t=>{
+      const from = state.wallets.find(w=>w.id===t.walletId);
+      const to = state.wallets.find(w=>w.id===t.toWalletId);
+      const map = {
+        date: t.date,
+        type: t.type,
+        wallet: from?from.name:'',
+        to: to?to.name:'',
+        category: t.category||'',
+        platform: t.platform||'',
+        amount: String(t.amount||''),
+        note: t.note||'',
+      };
+      return (map[field]||'').toLowerCase().includes(q);
+    });
+  }
+  rows.sort((a,b)=> new Date(b.date)-new Date(a.date));
+  rows.forEach(t=>{
+    const tr=document.createElement('tr');
+    const from = state.wallets.find(w=>w.id===t.walletId);
+    const to = state.wallets.find(w=>w.id===t.toWalletId);
+    tr.innerHTML = `
+      <td>${t.date}</td>
+      <td>${t.type}</td>
+      <td>${from?from.name:'(ลบแล้ว)'}</td>
+      <td>${to?to.name:'-'}</td>
+      <td>${t.category||'-'}</td>
+      <td>${t.platform||'-'}</td>
+      <td class="num">${t.type==='expense' ? '-฿ '+fmt(t.amount) : '฿ '+fmt(t.amount)}</td>
+      <td>${t.note||''}</td>
+      <td class="nowrap">
+        <button class="ghost" data-act="edit" data-id="${t.id}">✏️</button>
+        <button class="warn" data-act="del" data-id="${t.id}">🗑</button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+  body.querySelectorAll('button[data-act="edit"]').forEach(b=>b.addEventListener('click',()=>editTx(b.dataset.id)));
+  body.querySelectorAll('button[data-act="del"]').forEach(b=>b.addEventListener('click',()=>deleteTx(b.dataset.id)));
+}
+function render(){
+  renderDatalists();
+  renderDashboard();
+  renderWalletSelectors();
+  renderCategories();
+  renderPlatforms();
+  renderPlans();
+  renderTxTableAll();
   document.getElementById('gsUrl').value = state.cfg.gsUrl || '';
   document.getElementById('gsKey').value = state.cfg.gsKey || '';
 }
 
-// Mutations + Auto-sync
+/* -------------------- Emoji Picker -------------------- */
+const COMMON_EMOJIS = "😀😃😄😁😆😅😂🙂😉😊😍😘😗😙😚😎🤩🤗🤔😴🤤🤓🤠🥳😺😸😹💼💳🏦💰👜👛🏧🏪🛒🛍️🍔🍜🍣🍺☕️🍵🎁🚕🚗🚌🚉✈️🏝️🏠🎮🖥️📱⌚️🧾🧰🧱🧽🧻🧼🧴🪙💡📦📮📦📊📈📉🧧🏷️🔖⭐️🔥💥🎯🧭".split('');
+let _emojiResolve = null; // promise resolve
+function openEmojiPicker(){
+  const grid = document.getElementById('emojiGrid'); grid.innerHTML='';
+  COMMON_EMOJIS.forEach(e=>{
+    const btn=document.createElement('button'); btn.className='emoji-btn'; btn.textContent=e;
+    btn.addEventListener('click',()=>{ closeEmojiPicker(); if(_emojiResolve) _emojiResolve(e); });
+    grid.appendChild(btn);
+  });
+  document.getElementById('emojiBackdrop').style.display='flex';
+  return new Promise(res=>{ _emojiResolve = res; });
+}
+function closeEmojiPicker(){ document.getElementById('emojiBackdrop').style.display='none'; _emojiResolve=null; }
+document.getElementById('emojiClose').addEventListener('click', closeEmojiPicker);
+
+/* -------------------- Modal (generic) -------------------- */
+function openModal(title, bodyEl, onOk){
+  document.getElementById('modalTitle').textContent = title || 'แก้ไข';
+  const body = document.getElementById('modalBody'); body.innerHTML=''; body.appendChild(bodyEl);
+  const ok = document.getElementById('modalOk'), cancel = document.getElementById('modalCancel');
+  const close = ()=> document.getElementById('modalBackdrop').style.display='flex' && (document.getElementById('modalBackdrop').style.display='none');
+  document.getElementById('modalBackdrop').style.display='flex';
+  const okHandler = ()=>{ onOk && onOk(); document.getElementById('modalBackdrop').style.display='none'; cleanup(); };
+  const cancelHandler = ()=>{ document.getElementById('modalBackdrop').style.display='none'; cleanup(); };
+  function cleanup(){ ok.removeEventListener('click', okHandler); cancel.removeEventListener('click', cancelHandler); }
+  ok.addEventListener('click', okHandler); cancel.addEventListener('click', cancelHandler);
+}
+/* -------------------- Mutations + Auto-sync -------------------- */
 function apply(newState, {skipSync}={}){
   state = recalcBalances(newState);
   save(state);
@@ -382,59 +807,88 @@ function scheduleAutoSync(){
   }, 1200);
 }
 
-// Boot (pull → merge → seed guard)
-async function boot(){
-  render();
-  document.getElementById('tDate').value = todayStr();
-  if(state.cfg.gsUrl){
-    try{
-      setSyncStatus('pulling');
-      const remote = await gsPullAll();
-      const isEmpty = (remote.wallets?.length||0) + (remote.transactions?.length||0) === 0;
-
-      // ถ้า remote มีข้อมูลจริงอยู่แล้ว แต่ local ยังเป็นข้อมูลตัวอย่าง → ใช้ remote เลย (กันกระเป๋าซ้ำ)
-      const localLooksSeed =
-        (state.wallets?.length === 2 && state.transactions?.length === 0) &&
-        state.wallets.some(w => w.name === 'บัญชีหลัก') &&
-        state.wallets.some(w => w.name === 'บัตรเครดิต A');
-
-      if (!isEmpty && localLooksSeed) {
-        state = recalcBalances({ ...state, wallets: remote.wallets, transactions: remote.transactions });
-        save(state); render(); setSyncStatus('idle'); return;
-      }
-
-      if(isEmpty){ setSyncStatus('pushing'); await gsPushAll(state); setSyncStatus('idle'); }
-      else { const merged = mergeStateLWW(state, remote); apply(merged, {skipSync:true}); setSyncStatus('idle'); }
-    }catch(e){ console.error(e); setSyncStatus('error'); }
-  }
+/* -------------------- Wallet CRUD -------------------- */
+function resetWalletForm(){
+  state.ui.editingWalletId = null;
+  document.getElementById('wName').value='';
+  document.getElementById('wType').value='bank';
+  document.getElementById('wBlkBalance').style.display='block';
+  document.getElementById('wBlkCredit').style.display='none';
+  document.getElementById('wBalance').value='';
+  document.getElementById('wLimit').value='';
+  document.getElementById('wIconPreview').textContent='💼';
+  document.getElementById('btnAddWallet').disabled=false;
+  document.getElementById('btnUpdateWallet').disabled=true;
+  document.getElementById('btnCancelEditWallet').disabled=true;
 }
-boot();
-
-// UI
-document.querySelectorAll('.tabs button').forEach(btn=>btn.addEventListener('click',()=>{
-  const t = btn.dataset.tab;
-  document.getElementById('tab-dashboard').style.display = (t==='dashboard')?'grid':'none';
-  document.getElementById('tab-wallets').style.display = (t==='wallets')?'grid':'none';
-  document.getElementById('tab-add').style.display       = (t==='add')?'grid':'none';
-  document.getElementById('tab-settings').style.display  = (t==='settings')?'block':'none';
-}));
+function startEditWallet(id){
+  const w = state.wallets.find(x=>x.id===id); if(!w) return;
+  state.ui.editingWalletId = id;
+  document.getElementById('wName').value=w.name||'';
+  document.getElementById('wType').value=w.type||'bank';
+  document.getElementById('wIconPreview').innerHTML = (w.icon && String(w.icon).startsWith('data:image')) ? `<img src="${w.icon}">` : (w.icon||'💼');
+  if(w.type==='credit'){
+    document.getElementById('wBlkBalance').style.display='none';
+    document.getElementById('wBlkCredit').style.display='block';
+    document.getElementById('wLimit').value=w.creditLimit||0;
+  }else{
+    document.getElementById('wBlkBalance').style.display='block';
+    document.getElementById('wBlkCredit').style.display='none';
+    document.getElementById('wBalance').value=w.balance||0;
+  }
+  document.getElementById('btnAddWallet').disabled=true;
+  document.getElementById('btnUpdateWallet').disabled=false;
+  document.getElementById('btnCancelEditWallet').disabled=false;
+}
+async function deleteWallet(id){
+  const w = state.wallets.find(x=>x.id===id);
+  if(!w) return;
+  if(!confirm(`ลบกระเป๋า "${w.name}" ?`)) return;
+  apply({ ...state, wallets: state.wallets.filter(x=>x.id!==id) });
+}
 document.getElementById('wType').addEventListener('change', e=>{
   const v=e.target.value;
   document.getElementById('wBlkBalance').style.display = (v==='credit')?'none':'block';
   document.getElementById('wBlkCredit').style.display  = (v==='credit')?'block':'none';
 });
+document.getElementById('btnPickWalletEmoji').addEventListener('click', async ()=>{
+  const em = await openEmojiPicker(); document.getElementById('wIconPreview').textContent = em;
+});
 document.getElementById('btnAddWallet').addEventListener('click', ()=>{
   const name = document.getElementById('wName').value.trim();
   const type = document.getElementById('wType').value;
+  const iconEl = document.getElementById('wIconPreview');
+  const icon = iconEl.querySelector('img') ? iconEl.querySelector('img').src : iconEl.textContent || '💼';
   const balance = Number(document.getElementById('wBalance').value||0);
   const limit = Number(document.getElementById('wLimit').value||0);
   if(!name) return alert('กรุณาใส่ชื่อกระเป๋า');
-  let wallet = { id: crypto.randomUUID(), name, type, updatedAt: nowISO() };
+  let wallet = { id: crypto.randomUUID(), name, type, icon, updatedAt: nowISO() };
   if(type==='credit'){ wallet.creditLimit = limit; wallet.availableCredit = limit; }
   else { wallet.balance = balance; }
   apply({ ...state, wallets: [...state.wallets, wallet] });
-  document.getElementById('wName').value=''; document.getElementById('wBalance').value=''; document.getElementById('wLimit').value='';
+  resetWalletForm();
 });
+document.getElementById('btnUpdateWallet').addEventListener('click', ()=>{
+  const id = state.ui.editingWalletId; if(!id) return;
+  const name = document.getElementById('wName').value.trim();
+  const type = document.getElementById('wType').value;
+  const iconEl = document.getElementById('wIconPreview');
+  const icon = iconEl.querySelector('img') ? iconEl.querySelector('img').src : iconEl.textContent || '💼';
+  const balance = Number(document.getElementById('wBalance').value||0);
+  const limit = Number(document.getElementById('wLimit').value||0);
+  let wallets = state.wallets.map(w=>{
+    if(w.id!==id) return w;
+    let nw = {...w, name, type, icon, updatedAt: nowISO() };
+    if(type==='credit'){ nw.creditLimit = limit; nw.availableCredit = Math.min(nw.availableCredit||limit, limit); delete nw.balance; }
+    else { nw.balance = balance; delete nw.creditLimit; delete nw.availableCredit; }
+    return nw;
+  });
+  apply({ ...state, wallets });
+  resetWalletForm();
+});
+document.getElementById('btnCancelEditWallet').addEventListener('click', resetWalletForm);
+
+/* -------------------- Credit payment & Installment -------------------- */
 document.getElementById('btnPay').addEventListener('click', ()=>{
   const from = document.getElementById('payFrom').value;
   const card = document.getElementById('payCard').value;
@@ -444,6 +898,154 @@ document.getElementById('btnPay').addEventListener('click', ()=>{
   apply({ ...state, transactions: [...state.transactions, tx] });
   document.getElementById('payAmt').value='';
 });
+document.getElementById('btnCreatePlan').addEventListener('click', ()=>{
+  const walletId = document.getElementById('instWallet').value;
+  const desc = document.getElementById('instDesc').value.trim();
+  const total = Number(document.getElementById('instTotal').value||0);
+  const months = Number(document.getElementById('instMonths').value||0);
+  const start = document.getElementById('instStart').value || todayStr();
+  if(!walletId || !total || !months) return alert('กรอกข้อมูลให้ครบ');
+  const per = Math.round((total/months)*100)/100;
+  const plan = { id: crypto.randomUUID(), walletId, desc, total, months, perMonth: per, startDate: start, paidCount: 0, nextDue: start, active: true, updatedAt: nowISO() };
+  apply({ ...state, installmentPlans: [...(state.installmentPlans||[]), plan] });
+});
+function cancelPlan(id){
+  if(!confirm('ยกเลิกแผนผ่อนนี้?')) return;
+  const plans = (state.installmentPlans||[]).map(p=> p.id===id ? {...p, active:false, updatedAt: nowISO()} : p);
+  apply({ ...state, installmentPlans: plans });
+}
+function sameMonth(d1, d2){ const a=new Date(d1), b=new Date(d2); return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth(); }
+function addMonth(dateStr){ const d=new Date(dateStr); d.setMonth(d.getMonth()+1); return d.toISOString().slice(0,10); }
+function postOneInstallment(id, force=false){
+  const p = (state.installmentPlans||[]).find(x=>x.id===id); if(!p || p.active===false) return;
+  const today = todayStr();
+  if(!force && new Date(today) < new Date(p.nextDue||p.startDate)) return alert('ยังไม่ถึงกำหนดชำระงวดนี้');
+  if((p.paidCount||0) >= (p.months||0)) return alert('ครบทุกงวดแล้ว');
+  // add expense on the credit wallet
+  const tx = { id: crypto.randomUUID(), date: p.nextDue || today, type:'expense', walletId: p.walletId, amount: p.perMonth, category:'ผ่อนชำระ', platform:'', note: p.desc || 'ผ่อนชำระ', updatedAt: nowISO() };
+  const newPaid = (p.paidCount||0)+1;
+  const nextDue = newPaid>=p.months ? null : addMonth(p.nextDue || p.startDate);
+  const plans = state.installmentPlans.map(x=> x.id===id ? {...x, paidCount:newPaid, nextDue, updatedAt: nowISO()} : x);
+  apply({ ...state, installmentPlans: plans, transactions: [...state.transactions, tx] });
+}
+function runInstallmentScheduler(){
+  // auto-post if today >= nextDue and not already posted this month
+  const today = todayStr();
+  (state.installmentPlans||[]).forEach(p=>{
+    if(p.active===false) return;
+    if((p.paidCount||0) >= (p.months||0)) return;
+    const due = p.nextDue || p.startDate;
+    if(new Date(today) < new Date(due)) return;
+    // check if already posted for the same month
+    const exists = state.transactions.some(tx => tx.type==='expense' && tx.walletId===p.walletId && tx.note===p.desc && sameMonth(tx.date, due));
+    if(!exists){
+      postOneInstallment(p.id, true);
+    }
+  });
+}
+
+/* -------------------- Categories CRUD -------------------- */
+function resetCatForm(){
+  state.ui.editingCatId = null;
+  document.getElementById('catName').value='';
+  document.getElementById('catIconPreview').textContent='🏷️';
+  document.getElementById('btnAddCat').disabled=false;
+  document.getElementById('btnUpdateCat').disabled=true;
+  document.getElementById('btnCancelEditCat').disabled=true;
+}
+document.getElementById('btnPickCatEmoji').addEventListener('click', async ()=>{
+  const em = await openEmojiPicker(); document.getElementById('catIconPreview').textContent = em;
+});
+document.getElementById('btnAddCat').addEventListener('click', ()=>{
+  const name = document.getElementById('catName').value.trim();
+  const iconEl = document.getElementById('catIconPreview');
+  const icon = iconEl.querySelector('img') ? iconEl.querySelector('img').src : iconEl.textContent || '🏷️';
+  if(!name) return alert('กรุณาใส่ชื่อหมวด');
+  const item = { id: crypto.randomUUID(), name, icon, updatedAt: nowISO() };
+  apply({ ...state, categories: [...state.categories, item] });
+  resetCatForm();
+});
+function startEditCategory(id){
+  const c = state.categories.find(x=>x.id===id); if(!c) return;
+  state.ui.editingCatId = id;
+  document.getElementById('catName').value=c.name||'';
+  document.getElementById('catIconPreview').innerHTML = (c.icon && String(c.icon).startsWith('data:image')) ? `<img src="${c.icon}">` : (c.icon||'🏷️');
+  document.getElementById('btnAddCat').disabled=true;
+  document.getElementById('btnUpdateCat').disabled=false;
+  document.getElementById('btnCancelEditCat').disabled=false;
+}
+document.getElementById('btnUpdateCat').addEventListener('click', ()=>{
+  const id = state.ui.editingCatId; if(!id) return;
+  const name = document.getElementById('catName').value.trim();
+  const iconEl = document.getElementById('catIconPreview');
+  const icon = iconEl.querySelector('img') ? iconEl.querySelector('img').src : iconEl.textContent || '🏷️';
+  const categories = state.categories.map(c=> c.id===id ? {...c, name, icon, updatedAt: nowISO()} : c);
+  apply({ ...state, categories });
+  resetCatForm();
+});
+document.getElementById('btnCancelEditCat').addEventListener('click', resetCatForm);
+function deleteCategory(id){
+  const c = state.categories.find(x=>x.id===id); if(!c) return;
+  if(!confirm(`ลบหมวด "${c.name}" ?`)) return;
+  apply({ ...state, categories: state.categories.filter(x=>x.id!==id) });
+}
+
+/* -------------------- Platforms CRUD -------------------- */
+function resetPlatForm(){
+  state.ui.editingPlatId = null;
+  document.getElementById('platName').value='';
+  document.getElementById('platIconPreview').textContent='🛍️';
+  document.getElementById('btnAddPlat').disabled=false;
+  document.getElementById('btnUpdatePlat').disabled=true;
+  document.getElementById('btnCancelEditPlat').disabled=true;
+  document.getElementById('platIconFile').value='';
+}
+document.getElementById('btnPickPlatEmoji').addEventListener('click', async ()=>{
+  const em = await openEmojiPicker(); document.getElementById('platIconPreview').textContent = em;
+});
+document.getElementById('platIconFile').addEventListener('change', (e)=>{
+  const f = e.target.files?.[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    document.getElementById('platIconPreview').innerHTML = `<img src="${rd.result}">`;
+  };
+  rd.readAsDataURL(f);
+});
+document.getElementById('btnAddPlat').addEventListener('click', ()=>{
+  const name = document.getElementById('platName').value.trim();
+  const iconEl = document.getElementById('platIconPreview');
+  const icon = iconEl.querySelector('img') ? iconEl.querySelector('img').src : iconEl.textContent || '🛍️';
+  if(!name) return alert('กรุณาใส่ชื่อแพลตฟอร์ม/ร้าน');
+  const item = { id: crypto.randomUUID(), name, icon, updatedAt: nowISO() };
+  apply({ ...state, platforms: [...state.platforms, item] });
+  resetPlatForm();
+});
+function startEditPlatform(id){
+  const p = state.platforms.find(x=>x.id===id); if(!p) return;
+  state.ui.editingPlatId = id;
+  document.getElementById('platName').value=p.name||'';
+  document.getElementById('platIconPreview').innerHTML = (p.icon && String(p.icon).startsWith('data:image')) ? `<img src="${p.icon}">` : (p.icon||'🛍️');
+  document.getElementById('btnAddPlat').disabled=true;
+  document.getElementById('btnUpdatePlat').disabled=false;
+  document.getElementById('btnCancelEditPlat').disabled=false;
+}
+document.getElementById('btnUpdatePlat').addEventListener('click', ()=>{
+  const id = state.ui.editingPlatId; if(!id) return;
+  const name = document.getElementById('platName').value.trim();
+  const iconEl = document.getElementById('platIconPreview');
+  const icon = iconEl.querySelector('img') ? iconEl.querySelector('img').src : iconEl.textContent || '🛍️';
+  const platforms = state.platforms.map(p=> p.id===id ? {...p, name, icon, updatedAt: nowISO()} : p);
+  apply({ ...state, platforms });
+  resetPlatForm();
+});
+document.getElementById('btnCancelEditPlat').addEventListener('click', resetPlatForm);
+function deletePlatform(id){
+  const p = state.platforms.find(x=>x.id===id); if(!p) return;
+  if(!confirm(`ลบ "${p.name}" ?`)) return;
+  apply({ ...state, platforms: state.platforms.filter(x=>x.id!==id) });
+}
+
+/* -------------------- Transactions CRUD -------------------- */
 document.getElementById('tType').addEventListener('change', e=>{
   const v=e.target.value;
   document.getElementById('blkTo').style.display = (v==='transfer')?'block':'none';
@@ -464,6 +1066,58 @@ document.getElementById('btnAddTx').addEventListener('click', ()=>{
   apply({ ...state, transactions: [...state.transactions, tx] });
   document.getElementById('tAmt').value=''; document.getElementById('tCat').value=''; document.getElementById('tPlat').value=''; document.getElementById('tNote').value='';
 });
+function editTx(id){
+  const t = state.transactions.find(x=>x.id===id); if(!t) return;
+  const el = document.createElement('div'); el.className='stack';
+  el.innerHTML = `
+    <label>วันที่</label><input id="mDate" type="date" value="${t.date}">
+    <label>ประเภท</label>
+    <select id="mType">
+      <option value="income"${t.type==='income'?' selected':''}>รายรับ</option>
+      <option value="expense"${t.type==='expense'?' selected':''}>รายจ่าย</option>
+      <option value="transfer"${t.type==='transfer'?' selected':''}>โอน/โยกเงิน</option>
+    </select>
+    <label>จากกระเป๋า</label>
+    <select id="mFrom"></select>
+    <label>ไปยังกระเป๋า (สำหรับโอน)</label>
+    <select id="mTo"></select>
+    <label>จำนวน</label><input id="mAmt" type="number" value="${t.amount}">
+    <label>หมวด</label><input id="mCat" value="${t.category||''}" list="dlCats">
+    <label>แพลตฟอร์ม</label><input id="mPlat" value="${t.platform||''}" list="dlPlats">
+    <label>โน้ต</label><textarea id="mNote">${t.note||''}</textarea>
+  `;
+  const mFrom = el.querySelector('#mFrom'), mTo = el.querySelector('#mTo');
+  state.wallets.forEach(w=>{
+    const o=document.createElement('option'); o.value=w.id; o.textContent=w.name; if(w.id===t.walletId) o.selected=true; mFrom.appendChild(o);
+    const o2=document.createElement('option'); o2.value=w.id; o2.textContent=w.name; if(w.id===t.toWalletId) o2.selected=true; mTo.appendChild(o2);
+  });
+  openModal('แก้ไขรายการ', el, ()=>{
+    const nt = {
+      ...t,
+      date: el.querySelector('#mDate').value || t.date,
+      type: el.querySelector('#mType').value,
+      walletId: el.querySelector('#mFrom').value,
+      toWalletId: el.querySelector('#mTo').value || undefined,
+      amount: Number(el.querySelector('#mAmt').value||0),
+      category: el.querySelector('#mCat').value.trim(),
+      platform: el.querySelector('#mPlat').value.trim(),
+      note: el.querySelector('#mNote').value.trim(),
+      updatedAt: nowISO()
+    };
+    apply({ ...state, transactions: state.transactions.map(x=> x.id===id ? nt : x) });
+  });
+}
+function deleteTx(id){
+  if(!confirm('ลบรายการนี้?')) return;
+  apply({ ...state, transactions: state.transactions.filter(x=>x.id!==id) });
+}
+
+/* -------------------- Filters -------------------- */
+document.getElementById('txFilterField').addEventListener('change', renderTxTableAll);
+document.getElementById('txFilterQuery').addEventListener('input', renderTxTableAll);
+document.getElementById('btnClearFilter').addEventListener('click', ()=>{ document.getElementById('txFilterQuery').value=''; renderTxTableAll(); });
+
+/* -------------------- Settings & Sync -------------------- */
 document.getElementById('btnSaveSync').addEventListener('click', async ()=>{
   state.cfg.gsUrl = document.getElementById('gsUrl').value.trim();
   state.cfg.gsKey = document.getElementById('gsKey').value.trim();
@@ -495,6 +1149,87 @@ document.getElementById('fileImport').addEventListener('change', (e)=>{
   rd.onload = () => { try{ const s = JSON.parse(rd.result); apply(s, {skipSync:true}); alert('นำเข้าแล้ว'); }catch(err){ alert('ไฟล์ไม่ถูกต้อง'); } };
   rd.readAsText(f);
 });
+
+/* -------------------- Tabs -------------------- */
+document.querySelectorAll('.tabs button').forEach(btn=>btn.addEventListener('click',()=>{
+  const t = btn.dataset.tab;
+  document.getElementById('tab-dashboard').style.display   = (t==='dashboard')?'grid':'none';
+  document.getElementById('tab-wallets').style.display     = (t==='wallets')?'grid':'none';
+  document.getElementById('tab-transactions').style.display= (t==='transactions')?'block':'none';
+  document.getElementById('tab-categories').style.display  = (t==='categories')?'grid':'none';
+  document.getElementById('tab-platforms').style.display   = (t==='platforms')?'grid':'none';
+  document.getElementById('tab-add').style.display         = (t==='add')?'grid':'none';
+  document.getElementById('tab-settings').style.display    = (t==='settings')?'block':'none';
+}));
+
+// Dashboard timeframe controls
+const dashSel = document.getElementById('dashRange');
+const dashFrom = document.getElementById('dashFrom');
+const dashTo = document.getElementById('dashTo');
+const dashSep = dashFrom.nextElementSibling; // span –
+dashSel.addEventListener('change', ()=>{
+  const v = dashSel.value;
+  state.ui.dash.mode = v;
+  const show = (v==='custom');
+  dashFrom.style.display = show?'inline-block':'none';
+  dashSep.style.display = show?'inline-block':'none';
+  dashTo.style.display = show?'inline-block':'none';
+  apply(state, {skipSync:true});
+});
+[dashFrom, dashTo].forEach(inp=>inp.addEventListener('change', ()=>{
+  state.ui.dash.from = dashFrom.value;
+  state.ui.dash.to = dashTo.value;
+  apply(state, {skipSync:true});
+}));
+
+/* -------------------- Boot -------------------- */
+async function boot(){
+  // Prefill date & timeframe
+  document.getElementById('tDate').value = todayStr();
+  // Init custom range defaults
+  dashFrom.value = todayStr();
+  dashTo.value = todayStr();
+  dashSel.value = state.ui?.dash?.mode || 'thisMonth';
+  if(dashSel.value==='custom'){
+    dashFrom.style.display='inline-block'; dashSep.style.display='inline-block'; dashTo.style.display='inline-block';
+    dashFrom.value = state.ui?.dash?.from || todayStr();
+    dashTo.value = state.ui?.dash?.to || todayStr();
+  }
+
+  render();
+
+  // Pull from remote and merge (keeping seed-guard from previous logic)
+  if(state.cfg.gsUrl){
+    try{
+      setSyncStatus('pulling');
+      const remote = await gsPullAll();
+      const isEmpty = (remote.wallets?.length||0) + (remote.transactions?.length||0) === 0;
+
+      const localLooksSeed =
+        (state.wallets?.length === 2 && state.transactions?.length === 0) &&
+        state.wallets.some(w => w.name === 'บัญชีหลัก') &&
+        state.wallets.some(w => w.name === 'บัตรเครดิต A');
+
+      if (!isEmpty && localLooksSeed) {
+        state = recalcBalances({ ...state,
+          wallets: remote.wallets,
+          transactions: remote.transactions,
+          installmentPlans: remote.installmentPlans || []
+        });
+        save(state); render(); setSyncStatus('idle');
+      } else if(isEmpty){
+        setSyncStatus('pushing'); await gsPushAll(state); setSyncStatus('idle');
+      } else {
+        const merged = mergeStateLWW(state, remote);
+        apply(merged, {skipSync:true}); setSyncStatus('idle');
+      }
+    }catch(e){ console.error(e); setSyncStatus('error'); }
+  }
+
+  // Auto post installments if needed (after sync)
+  runInstallmentScheduler();
+}
+boot();
 </script>
 </body>
 </html>
