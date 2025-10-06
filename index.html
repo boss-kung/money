@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>สมุดรายรับรายจ่าย — One File (CORS Fixed)</title>
+<title>สมุดรายรับรายจ่าย — One File (CORS Fixed + Dedup)</title>
 <style>
   :root { --bg:#0b0b0f; --card:#14141a; --muted:#8b8b94; --text:#eaeaf1; --accent:#5ee391; --danger:#ff6b6b; }
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
@@ -182,14 +182,20 @@
 </div>
 
 <script>
+// Prefilled
 const PREFILLED_URL = "https://script.google.com/macros/s/AKfycbzHnFO495JmY8oI_1qoygD6-55pmoZg-eeHzoLUQk0XNlbRKahyRbXmW-AIRLaQbtY1/exec";
 const PREFILLED_KEY = "boss_2f8c3a1e9d9b4d7abcf1e9f3d8a4e6c1";
+
+// Utils
 const fmt = n => (Number(n)||0).toLocaleString('th-TH',{minimumFractionDigits:2, maximumFractionDigits:2});
 const todayStr = () => new Date().toISOString().slice(0,10);
 const nowISO = () => new Date().toISOString();
-const LS_KEY = 'income_expense_onefile_ready_v2';
+
+// Storage
+const LS_KEY = 'income_expense_onefile_ready_v3';
 const load = () => { try{ return JSON.parse(localStorage.getItem(LS_KEY)) || null }catch(e){return null} };
 const save = (s) => localStorage.setItem(LS_KEY, JSON.stringify(s));
+
 const defaultState = () => ({
   cfg: { gsUrl: PREFILLED_URL, gsKey: PREFILLED_KEY },
   wallets: [
@@ -198,18 +204,18 @@ const defaultState = () => ({
   ],
   transactions: [],
 });
+
 let state = load() || defaultState();
 let debounceTimer = null;
 let syncStatus = 'idle';
 function setSyncStatus(s){ syncStatus = s; document.getElementById('syncStatus').textContent = 'สถานะ: ' + s; }
 
+// Google Sheets API (CORS-safe)
 function withQuery(base, params){
   const url = new URL(base);
   Object.entries(params||{}).forEach(([k,v])=>{ if(v!==undefined && v!==null && v!=='') url.searchParams.set(k, String(v)); });
   return url.toString();
 }
-
-// CORS-safe fetches
 async function gsFetch(entity, op, payload){
   if(!state.cfg.gsUrl) throw new Error('ยังไม่ตั้งค่า gsUrl');
   if (op === 'list') {
@@ -228,7 +234,6 @@ async function gsFetch(entity, op, payload){
   }
   throw new Error('Unknown gsFetch op');
 }
-
 async function gsPullAll(){
   const [wallets, transactions, plans] = await Promise.all([
     gsFetch('wallets','list'),
@@ -242,6 +247,7 @@ async function gsPushAll(s){
   return gsFetch('bulk','replaceAll', payload);
 }
 
+// Merge helpers
 function mergeByIdLWW(localArr=[], remoteArr=[]){
   const map = new Map();
   const put = (x)=>{ if(!x?.id) return; const old=map.get(x.id); if(!old){ map.set(x.id,x); return; }
@@ -249,13 +255,29 @@ function mergeByIdLWW(localArr=[], remoteArr=[]){
   localArr.forEach(put); remoteArr.forEach(put);
   return Array.from(map.values());
 }
+function dedupWalletsByNameType(list=[]){
+  const key = w => (w.name||'').trim().toLowerCase()+'|'+(w.type||'');
+  const map = new Map();
+  for (const w of list){
+    const k = key(w);
+    if (!map.has(k)) { map.set(k, w); continue; }
+    const a = map.get(k);
+    const ta = Date.parse(a.updatedAt||0)||0, tb = Date.parse(w.updatedAt||0)||0;
+    if (tb > ta) map.set(k, w); // last-write-wins
+  }
+  return Array.from(map.values());
+}
 function mergeStateLWW(localS, remoteS){
-  return { ...localS,
+  const merged = {
+    ...localS,
     wallets: mergeByIdLWW(localS.wallets, remoteS.wallets),
     transactions: mergeByIdLWW(localS.transactions, remoteS.transactions),
   };
+  merged.wallets = dedupWalletsByNameType(merged.wallets);
+  return merged;
 }
 
+// Recalc balances
 function recalcBalances(s){
   const wallets = s.wallets.map(w=>({...w}));
   wallets.forEach(w=>{
@@ -291,6 +313,7 @@ function recalcBalances(s){
   return { ...s, wallets };
 }
 
+// Render
 function render(){
   const start = new Date(); start.setDate(1);
   const end = new Date(start.getFullYear(), start.getMonth()+1, 0);
@@ -343,6 +366,7 @@ function render(){
   document.getElementById('gsKey').value = state.cfg.gsKey || '';
 }
 
+// Mutations + Auto-sync
 function apply(newState, {skipSync}={}){
   state = recalcBalances(newState);
   save(state);
@@ -358,6 +382,7 @@ function scheduleAutoSync(){
   }, 1200);
 }
 
+// Boot (pull → merge → seed guard)
 async function boot(){
   render();
   document.getElementById('tDate').value = todayStr();
@@ -366,6 +391,18 @@ async function boot(){
       setSyncStatus('pulling');
       const remote = await gsPullAll();
       const isEmpty = (remote.wallets?.length||0) + (remote.transactions?.length||0) === 0;
+
+      // ถ้า remote มีข้อมูลจริงอยู่แล้ว แต่ local ยังเป็นข้อมูลตัวอย่าง → ใช้ remote เลย (กันกระเป๋าซ้ำ)
+      const localLooksSeed =
+        (state.wallets?.length === 2 && state.transactions?.length === 0) &&
+        state.wallets.some(w => w.name === 'บัญชีหลัก') &&
+        state.wallets.some(w => w.name === 'บัตรเครดิต A');
+
+      if (!isEmpty && localLooksSeed) {
+        state = recalcBalances({ ...state, wallets: remote.wallets, transactions: remote.transactions });
+        save(state); render(); setSyncStatus('idle'); return;
+      }
+
       if(isEmpty){ setSyncStatus('pushing'); await gsPushAll(state); setSyncStatus('idle'); }
       else { const merged = mergeStateLWW(state, remote); apply(merged, {skipSync:true}); setSyncStatus('idle'); }
     }catch(e){ console.error(e); setSyncStatus('error'); }
@@ -373,6 +410,7 @@ async function boot(){
 }
 boot();
 
+// UI
 document.querySelectorAll('.tabs button').forEach(btn=>btn.addEventListener('click',()=>{
   const t = btn.dataset.tab;
   document.getElementById('tab-dashboard').style.display = (t==='dashboard')?'grid':'none';
