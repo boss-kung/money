@@ -4,29 +4,214 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>สมุดรายรับรายจ่าย (CORS Fixed)</title>
+<title>สมุดรายรับรายจ่าย — One File (CORS Fixed)</title>
+<style>
+  :root { --bg:#0b0b0f; --card:#14141a; --muted:#8b8b94; --text:#eaeaf1; --accent:#5ee391; --danger:#ff6b6b; }
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+  header{padding:16px 20px;display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #222}
+  h1{font-size:20px;margin:0}
+  .right{display:flex;gap:8px;align-items:center}
+  button, select, input{font:inherit}
+  button{padding:8px 12px;border-radius:12px;border:1px solid #333;background:#1d1d25;color:var(--text);cursor:pointer}
+  button.primary{background:#1c2a21;border-color:#284130}
+  button.ghost{background:transparent;border-color:#333}
+  button:disabled{opacity:.6;cursor:not-allowed}
+  .status{font-size:12px;color:var(--muted)}
+  .wrap{padding:16px;max-width:1100px;margin:0 auto}
+  .tabs{display:flex;gap:8px;margin:12px 0 16px}
+  .tabs button{border-radius:999px;padding:8px 14px}
+  .grid{display:grid;gap:12px}
+  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .card{background:var(--card);border:1px solid #23232a;border-radius:16px;padding:14px}
+  .card h2{margin:0 0 10px 0;font-size:16px}
+  label{font-size:12px;color:var(--muted);display:block;margin:8px 0 4px}
+  input, select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2a2a33;background:#111018;color:var(--text)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:10px;border-bottom:1px solid #23232a;text-align:left}
+  td.num{text-align:right}
+  .ok{color:var(--accent)} .bad{color:var(--danger)}
+  .muted{color:var(--muted)}
+  .pill{display:inline-block;border:1px solid #333;border-radius:999px;padding:2px 8px;font-size:12px}
+  @media (max-width:900px){ .g3{grid-template-columns:1fr} .g2{grid-template-columns:1fr} header{flex-wrap:wrap;gap:8px} }
+</style>
 </head>
 <body>
-<h2>สมุดรายรับรายจ่าย (CORS Fixed Version)</h2>
-<p>เวอร์ชันนี้แก้ปัญหา CORS แล้ว สามารถใช้งานผ่าน GitHub Pages ได้</p>
+<header>
+  <h1>สมุดรายรับรายจ่าย (One File + Auto Sync)</h1>
+  <div class="right">
+    <button id="btnSync" class="ghost">ซิงค์</button>
+    <div id="syncStatus" class="status">สถานะ: idle</div>
+    <button id="btnExport" class="ghost">ส่งออก</button>
+    <label class="pill" style="cursor:pointer;">
+      นำเข้า <input id="fileImport" type="file" accept="application/json" style="display:none">
+    </label>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="pill" data-tab="dashboard">แดชบอร์ด</button>
+    <button class="pill" data-tab="wallets">กระเป๋าเงิน</button>
+    <button class="pill" data-tab="add">เพิ่มรายการ</button>
+    <button class="pill" data-tab="settings">ตั้งค่า</button>
+  </div>
+
+  <section id="tab-dashboard" class="grid g3">
+    <div class="card">
+      <h2>รายรับเดือนนี้</h2>
+      <div id="sumIncome" style="font-size:28px;font-weight:700">฿ 0.00</div>
+    </div>
+    <div class="card">
+      <h2>รายจ่ายเดือนนี้</h2>
+      <div id="sumExpense" style="font-size:28px;font-weight:700">฿ 0.00</div>
+    </div>
+    <div class="card">
+      <h2>คงเหลือ (สุทธิ)</h2>
+      <div id="sumNet" style="font-size:28px;font-weight:700">฿ 0.00</div>
+    </div>
+
+    <div class="card g3" style="grid-column:1/-1">
+      <h2>กระเป๋าทั้งหมด</h2>
+      <div id="walletList" class="grid g3"></div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <h2>รายการล่าสุด</h2>
+      <div style="overflow:auto">
+        <table>
+          <thead><tr><th>วันที่</th><th>ประเภท</th><th>จาก</th><th>ไป</th><th>หมวด</th><th>แพลตฟอร์ม</th><th class="num">จำนวน</th><th>โน้ต</th></tr></thead>
+          <tbody id="txTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-wallets" class="grid g2" style="display:none">
+    <div class="card">
+      <h2>เพิ่มกระเป๋า</h2>
+      <label>ชื่อกระเป๋า</label>
+      <input id="wName" placeholder="เช่น บัญชีหลัก" />
+      <label>ประเภท</label>
+      <select id="wType">
+        <option value="bank">บัญชีธนาคาร</option>
+        <option value="ewallet">E-Wallet</option>
+        <option value="cash">เงินสด</option>
+        <option value="crypto">คริปโต</option>
+        <option value="credit">บัตรเครดิต (วงเงิน)</option>
+      </select>
+      <div id="wBlkBalance">
+        <label>ยอดเริ่มต้น</label>
+        <input id="wBalance" type="number" placeholder="0" />
+      </div>
+      <div id="wBlkCredit" style="display:none">
+        <label>วงเงินรวม</label>
+        <input id="wLimit" type="number" placeholder="50000" />
+      </div>
+      <button id="btnAddWallet" class="primary" style="margin-top:8px">บันทึก</button>
+    </div>
+
+    <div class="card">
+      <h2>ชำระบัตรเครดิต</h2>
+      <label>จากกระเป๋า</label>
+      <select id="payFrom"></select>
+      <label>ไปยังบัตรเครดิต</label>
+      <select id="payCard"></select>
+      <label>จำนวนเงิน</label>
+      <input id="payAmt" type="number" placeholder="0" />
+      <button id="btnPay" class="primary" style="margin-top:8px">บันทึก</button>
+    </div>
+  </section>
+
+  <section id="tab-add" class="grid g2" style="display:none">
+    <div class="card">
+      <h2>เพิ่มรายการ</h2>
+      <label>วันที่</label>
+      <input id="tDate" type="date" />
+      <label>ประเภท</label>
+      <select id="tType">
+        <option value="income">รายรับ</option>
+        <option value="expense">รายจ่าย</option>
+        <option value="transfer">โอน/โยกเงิน</option>
+      </select>
+      <label id="lblFrom">จากกระเป๋า</label>
+      <select id="tFrom"></select>
+      <div id="blkTo" style="display:none">
+        <label>ไปยังกระเป๋า (สำหรับโอน/ชำระบัตร)</label>
+        <select id="tTo"></select>
+      </div>
+      <label>จำนวนเงิน</label>
+      <input id="tAmt" type="number" />
+      <div id="blkCatPlat">
+        <label>หมวด</label>
+        <input id="tCat" placeholder="อาหาร / เงินเดือน / อื่นๆ" />
+        <label>แพลตฟอร์ม/ร้าน</label>
+        <input id="tPlat" placeholder="Shopee / ร้านค้าในห้าง" />
+      </div>
+      <label>โน้ต</label>
+      <input id="tNote" placeholder="โน้ต (ถ้ามี)" />
+      <button id="btnAddTx" class="primary" style="margin-top:8px">บันทึก</button>
+    </div>
+
+    <div class="card">
+      <h2>อธิบายแบบเด็กประถม</h2>
+      <ol>
+        <li>เพิ่ม <b>กระเป๋า</b> ก่อน (เช่น บัญชีหลัก, บัตรเครดิต)</li>
+        <li>กดแท็บ <b>เพิ่มรายการ</b> เพื่อจดว่า วันนี้ได้เงิน หรือใช้เงินเท่าไร</li>
+        <li>ถ้าใช้ <b>บัตรเครดิต</b> ให้เลือกกระเป๋าเป็นบัตรนั้น (จะหักจากวงเงิน ไม่ได้หักเงินสด)</li>
+        <li>ถ้า <b>จ่ายบัตรเครดิต</b> ไปที่แท็บ <b>กระเป๋าเงิน</b> แล้วกรอก “ชำระบัตรเครดิต”</li>
+        <li><b>ซิงค์อัตโนมัติ</b>: แอปจะอัปขึ้นชีตเองเมื่อคุณแก้ข้อมูล และดึงลงมาอัตโนมัติเมื่อเปิดครั้งแรก</li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="tab-settings" style="display:none">
+    <div class="card">
+      <h2>การซิงค์กับ Google Sheets</h2>
+      <p class="muted">แก้ค่าได้ตามต้องการ</p>
+      <label>GS BASE URL</label>
+      <input id="gsUrl" />
+      <label>API KEY</label>
+      <input id="gsKey" />
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="btnSaveSync" class="primary">บันทึก & ทดสอบซิงค์</button>
+        <button id="btnClear" class="ghost">ล้างข้อมูลในเครื่อง</button>
+      </div>
+    </div>
+  </section>
+</div>
+
 <script>
-const state = { cfg: { 
-  gsUrl: "https://script.google.com/macros/s/AKfycbzHnFO495JmY8oI_1qoygD6-55pmoZg-eeHzoLUQk0XNlbRKahyRbXmW-AIRLaQbtY1/exec", 
-  gsKey: "boss_2f8c3a1e9d9b4d7abcf1e9f3d8a4e6c1" 
-}};
+const PREFILLED_URL = "https://script.google.com/macros/s/AKfycbzHnFO495JmY8oI_1qoygD6-55pmoZg-eeHzoLUQk0XNlbRKahyRbXmW-AIRLaQbtY1/exec";
+const PREFILLED_KEY = "boss_2f8c3a1e9d9b4d7abcf1e9f3d8a4e6c1";
+const fmt = n => (Number(n)||0).toLocaleString('th-TH',{minimumFractionDigits:2, maximumFractionDigits:2});
+const todayStr = () => new Date().toISOString().slice(0,10);
+const nowISO = () => new Date().toISOString();
+const LS_KEY = 'income_expense_onefile_ready_v2';
+const load = () => { try{ return JSON.parse(localStorage.getItem(LS_KEY)) || null }catch(e){return null} };
+const save = (s) => localStorage.setItem(LS_KEY, JSON.stringify(s));
+const defaultState = () => ({
+  cfg: { gsUrl: PREFILLED_URL, gsKey: PREFILLED_KEY },
+  wallets: [
+    { id: crypto.randomUUID(), name: 'บัญชีหลัก', type: 'bank', balance: 30000, updatedAt: nowISO() },
+    { id: crypto.randomUUID(), name: 'บัตรเครดิต A', type: 'credit', creditLimit: 50000, availableCredit: 50000, updatedAt: nowISO() },
+  ],
+  transactions: [],
+});
+let state = load() || defaultState();
+let debounceTimer = null;
+let syncStatus = 'idle';
+function setSyncStatus(s){ syncStatus = s; document.getElementById('syncStatus').textContent = 'สถานะ: ' + s; }
 
 function withQuery(base, params){
   const url = new URL(base);
-  Object.entries(params||{}).forEach(([k,v])=>{ 
-    if(v!==undefined && v!==null && v!=='') url.searchParams.set(k, String(v)); 
-  });
+  Object.entries(params||{}).forEach(([k,v])=>{ if(v!==undefined && v!==null && v!=='') url.searchParams.set(k, String(v)); });
   return url.toString();
 }
 
+// CORS-safe fetches
 async function gsFetch(entity, op, payload){
   if(!state.cfg.gsUrl) throw new Error('ยังไม่ตั้งค่า gsUrl');
-
-  // สำหรับ list ใช้ GET ไม่มี header => ไม่โดน CORS
   if (op === 'list') {
     const url = withQuery(state.cfg.gsUrl, { entity, op, apiKey: state.cfg.gsKey });
     const res = await fetch(url, { method: 'GET' });
@@ -34,8 +219,6 @@ async function gsFetch(entity, op, payload){
     if (data && data.ok === false) throw new Error(data.error || 'API error');
     return data;
   }
-
-  // สำหรับ replaceAll ใช้ POST แบบ simple (ไม่ตั้ง header)
   if (entity === 'bulk' && op === 'replaceAll') {
     const url = withQuery(state.cfg.gsUrl, { entity, op, apiKey: state.cfg.gsKey });
     const res = await fetch(url, { method: 'POST', body: JSON.stringify(payload || {}) });
@@ -43,20 +226,237 @@ async function gsFetch(entity, op, payload){
     if (data && data.ok === false) throw new Error(data.error || 'API error');
     return data;
   }
-
   throw new Error('Unknown gsFetch op');
 }
 
-async function test(){
-  try {
-    const data = await gsFetch("wallets", "list");
-    document.body.insertAdjacentHTML('beforeend', `<pre>${JSON.stringify(data,null,2)}</pre>`);
-  } catch(e){
-    document.body.insertAdjacentHTML('beforeend', `<pre style="color:red">${e}</pre>`);
-  }
+async function gsPullAll(){
+  const [wallets, transactions, plans] = await Promise.all([
+    gsFetch('wallets','list'),
+    gsFetch('transactions','list'),
+    gsFetch('plans','list'),
+  ]);
+  return { wallets, transactions, installmentPlans: plans||[] };
+}
+async function gsPushAll(s){
+  const payload = { wallets: s.wallets, transactions: s.transactions, plans: [] };
+  return gsFetch('bulk','replaceAll', payload);
 }
 
-test();
+function mergeByIdLWW(localArr=[], remoteArr=[]){
+  const map = new Map();
+  const put = (x)=>{ if(!x?.id) return; const old=map.get(x.id); if(!old){ map.set(x.id,x); return; }
+    const ta=Date.parse(old.updatedAt||0)||0, tb=Date.parse(x.updatedAt||0)||0; if(tb>=ta) map.set(x.id,x); };
+  localArr.forEach(put); remoteArr.forEach(put);
+  return Array.from(map.values());
+}
+function mergeStateLWW(localS, remoteS){
+  return { ...localS,
+    wallets: mergeByIdLWW(localS.wallets, remoteS.wallets),
+    transactions: mergeByIdLWW(localS.transactions, remoteS.transactions),
+  };
+}
+
+function recalcBalances(s){
+  const wallets = s.wallets.map(w=>({...w}));
+  wallets.forEach(w=>{
+    if(w.type==='credit'){
+      if(typeof w.creditLimit!=='number') w.creditLimit=0;
+      if(typeof w.availableCredit!=='number') w.availableCredit=w.creditLimit;
+    }
+  });
+  const txs = [...s.transactions].sort((a,b)=> new Date(a.date)-new Date(b.date));
+  txs.forEach(t=>{
+    const from=wallets.find(w=>w.id===t.walletId);
+    if(t.type==='income'){
+      if(from && from.type!=='credit') from.balance=(from.balance||0)+Math.abs(t.amount);
+    }else if(t.type==='expense'){
+      if(from){
+        if(from.type==='credit') from.availableCredit=Math.max(0,(from.availableCredit||0)-Math.abs(t.amount));
+        else from.balance=(from.balance||0)-Math.abs(t.amount);
+      }
+    }else if(t.type==='transfer'){
+      const to=wallets.find(w=>w.id===t.toWalletId);
+      const amt=Math.abs(t.amount||0);
+      if(from && to){
+        if(to.type==='credit'){
+          to.availableCredit=Math.min((to.creditLimit||0),(to.availableCredit||0)+amt);
+          if(from.type!=='credit') from.balance=(from.balance||0)-amt;
+        }else{
+          if(from.type==='credit'){ from.availableCredit=Math.max(0,(from.availableCredit||0)-amt); to.balance=(to.balance||0)+amt; }
+          else { from.balance=(from.balance||0)-amt; to.balance=(to.balance||0)+amt; }
+        }
+      }
+    }
+  });
+  return { ...s, wallets };
+}
+
+function render(){
+  const start = new Date(); start.setDate(1);
+  const end = new Date(start.getFullYear(), start.getMonth()+1, 0);
+  const inMonth = state.transactions.filter(t=>{ const d=new Date(t.date); return d>=start && d<=end; });
+  const income = inMonth.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount||0),0);
+  const expense = inMonth.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount||0),0);
+  document.getElementById('sumIncome').textContent = '฿ '+fmt(income);
+  document.getElementById('sumExpense').textContent = '฿ '+fmt(expense);
+  const net = income - expense;
+  const elNet = document.getElementById('sumNet'); elNet.textContent='฿ '+fmt(net); elNet.className = net>=0 ? 'ok' : 'bad';
+
+  const wl = document.getElementById('walletList'); wl.innerHTML='';
+  state.wallets.forEach(w=>{ const div=document.createElement('div'); div.className='card';
+    div.innerHTML = `
+      <div style="font-weight:700;margin-bottom:6px">${w.name}</div>
+      ${w.type==='credit' ? `
+        <div>วงเงินรวม: ฿ ${fmt(w.creditLimit||0)}</div>
+        <div>คงเหลือ: <b>฿ ${fmt(w.availableCredit||0)}</b></div>
+      ` : `
+        <div>ยอดคงเหลือ: <b>฿ ${fmt(w.balance||0)}</b></div>
+      `}
+      <div class="muted" style="margin-top:6px">ชนิด: ${w.type}</div>
+    `; wl.appendChild(div); });
+  const body = document.getElementById('txTable'); body.innerHTML='';
+  const latest = [...state.transactions].sort((a,b)=> new Date(b.date)-new Date(a.date)).slice(0,20);
+  latest.forEach(t=>{ const tr=document.createElement('tr');
+    const from = state.wallets.find(w=>w.id===t.walletId);
+    const to = state.wallets.find(w=>w.id===t.toWalletId);
+    tr.innerHTML = `
+      <td>${new Date(t.date).toLocaleDateString('th-TH')}</td>
+      <td>${t.type}</td>
+      <td>${from?from.name:'-'}</td>
+      <td>${to?to.name:'-'}</td>
+      <td>${t.category||'-'}</td>
+      <td>${t.platform||'-'}</td>
+      <td class="num">${t.type==='expense' ? '-฿ '+fmt(t.amount) : '฿ '+fmt(t.amount)}</td>
+      <td>${t.note||''}</td>
+    `; body.appendChild(tr); });
+  const selFrom = document.getElementById('tFrom'); selFrom.innerHTML='';
+  const selTo = document.getElementById('tTo'); selTo.innerHTML='';
+  const payFrom = document.getElementById('payFrom'); payFrom.innerHTML='';
+  const payCard = document.getElementById('payCard'); payCard.innerHTML='';
+  state.wallets.forEach(w=>{
+    const opt=document.createElement('option'); opt.value=w.id; opt.textContent=w.name; selFrom.appendChild(opt.cloneNode(true));
+    const opt2=document.createElement('option'); opt2.value=w.id; opt2.textContent=w.name; selTo.appendChild(opt2);
+    const opt3=document.createElement('option'); opt3.value=w.id; opt3.textContent=w.name; if(w.type!=='credit') payFrom.appendChild(opt3);
+    const opt4=document.createElement('option'); opt4.value=w.id; opt4.textContent=w.name; if(w.type==='credit') payCard.appendChild(opt4);
+  });
+  document.getElementById('gsUrl').value = state.cfg.gsUrl || '';
+  document.getElementById('gsKey').value = state.cfg.gsKey || '';
+}
+
+function apply(newState, {skipSync}={}){
+  state = recalcBalances(newState);
+  save(state);
+  render();
+  if(!skipSync) scheduleAutoSync();
+}
+function scheduleAutoSync(){
+  if(!state.cfg.gsUrl) return;
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(async ()=>{
+    try{ setSyncStatus('pushing'); await gsPushAll(state); setSyncStatus('idle'); }
+    catch(e){ console.error(e); setSyncStatus('error'); }
+  }, 1200);
+}
+
+async function boot(){
+  render();
+  document.getElementById('tDate').value = todayStr();
+  if(state.cfg.gsUrl){
+    try{
+      setSyncStatus('pulling');
+      const remote = await gsPullAll();
+      const isEmpty = (remote.wallets?.length||0) + (remote.transactions?.length||0) === 0;
+      if(isEmpty){ setSyncStatus('pushing'); await gsPushAll(state); setSyncStatus('idle'); }
+      else { const merged = mergeStateLWW(state, remote); apply(merged, {skipSync:true}); setSyncStatus('idle'); }
+    }catch(e){ console.error(e); setSyncStatus('error'); }
+  }
+}
+boot();
+
+document.querySelectorAll('.tabs button').forEach(btn=>btn.addEventListener('click',()=>{
+  const t = btn.dataset.tab;
+  document.getElementById('tab-dashboard').style.display = (t==='dashboard')?'grid':'none';
+  document.getElementById('tab-wallets').style.display = (t==='wallets')?'grid':'none';
+  document.getElementById('tab-add').style.display       = (t==='add')?'grid':'none';
+  document.getElementById('tab-settings').style.display  = (t==='settings')?'block':'none';
+}));
+document.getElementById('wType').addEventListener('change', e=>{
+  const v=e.target.value;
+  document.getElementById('wBlkBalance').style.display = (v==='credit')?'none':'block';
+  document.getElementById('wBlkCredit').style.display  = (v==='credit')?'block':'none';
+});
+document.getElementById('btnAddWallet').addEventListener('click', ()=>{
+  const name = document.getElementById('wName').value.trim();
+  const type = document.getElementById('wType').value;
+  const balance = Number(document.getElementById('wBalance').value||0);
+  const limit = Number(document.getElementById('wLimit').value||0);
+  if(!name) return alert('กรุณาใส่ชื่อกระเป๋า');
+  let wallet = { id: crypto.randomUUID(), name, type, updatedAt: nowISO() };
+  if(type==='credit'){ wallet.creditLimit = limit; wallet.availableCredit = limit; }
+  else { wallet.balance = balance; }
+  apply({ ...state, wallets: [...state.wallets, wallet] });
+  document.getElementById('wName').value=''; document.getElementById('wBalance').value=''; document.getElementById('wLimit').value='';
+});
+document.getElementById('btnPay').addEventListener('click', ()=>{
+  const from = document.getElementById('payFrom').value;
+  const card = document.getElementById('payCard').value;
+  const amt = Number(document.getElementById('payAmt').value||0);
+  if(!from || !card || !amt) return alert('กรุณากรอกให้ครบ');
+  const tx = { id: crypto.randomUUID(), date: todayStr(), type:'transfer', walletId: from, toWalletId: card, amount: amt, note: 'ชำระบัตรเครดิต', updatedAt: nowISO() };
+  apply({ ...state, transactions: [...state.transactions, tx] });
+  document.getElementById('payAmt').value='';
+});
+document.getElementById('tType').addEventListener('change', e=>{
+  const v=e.target.value;
+  document.getElementById('blkTo').style.display = (v==='transfer')?'block':'none';
+  document.getElementById('lblFrom').textContent = (v==='income')?'เข้ากระเป๋า':'จากกระเป๋า';
+  document.getElementById('blkCatPlat').style.display = (v==='transfer')?'none':'block';
+});
+document.getElementById('btnAddTx').addEventListener('click', ()=>{
+  const date = document.getElementById('tDate').value || todayStr();
+  const type = document.getElementById('tType').value;
+  const walletId = document.getElementById('tFrom').value;
+  const toWalletId = document.getElementById('tTo').value || undefined;
+  const amount = Number(document.getElementById('tAmt').value||0);
+  const category = document.getElementById('tCat').value.trim();
+  const platform = document.getElementById('tPlat').value.trim();
+  const note = document.getElementById('tNote').value.trim();
+  if(!walletId || !amount) return alert('กรุณาเลือกกระเป๋าและจำนวนเงิน');
+  const tx = { id: crypto.randomUUID(), date, type, walletId, toWalletId, amount, category, platform, note, updatedAt: nowISO() };
+  apply({ ...state, transactions: [...state.transactions, tx] });
+  document.getElementById('tAmt').value=''; document.getElementById('tCat').value=''; document.getElementById('tPlat').value=''; document.getElementById('tNote').value='';
+});
+document.getElementById('btnSaveSync').addEventListener('click', async ()=>{
+  state.cfg.gsUrl = document.getElementById('gsUrl').value.trim();
+  state.cfg.gsKey = document.getElementById('gsKey').value.trim();
+  save(state);
+  if(!state.cfg.gsUrl) return alert('บันทึกแล้ว (ยังไม่ได้ใส่ URL)');
+  try{
+    setSyncStatus('pulling');
+    const remote = await gsPullAll();
+    const isEmpty = (remote.wallets?.length||0)+(remote.transactions?.length||0)===0;
+    if(isEmpty){ setSyncStatus('pushing'); await gsPushAll(state); setSyncStatus('idle'); alert('เชื่อมสำเร็จ & อัปขึ้นชีต'); }
+    else { const merged = mergeStateLWW(state, remote); apply(merged, {skipSync:true}); setSyncStatus('idle'); alert('เชื่อมสำเร็จ & รวมข้อมูล'); }
+  }catch(e){ console.error(e); setSyncStatus('error'); alert('เชื่อมไม่สำเร็จ ตรวจ URL/Key'); }
+});
+document.getElementById('btnClear').addEventListener('click', ()=>{
+  if(confirm('ล้างข้อมูลในเครื่อง?')){ localStorage.removeItem(LS_KEY); state = defaultState(); apply(state, {skipSync:true}); }
+});
+document.getElementById('btnSync').addEventListener('click', async ()=>{
+  if(!state.cfg.gsUrl) return alert('ยังไม่ตั้งค่าซิงค์ในแท็บ ตั้งค่า');
+  try{ setSyncStatus('pushing'); await gsPushAll(state); setSyncStatus('idle'); alert('ซิงค์แล้ว'); }
+  catch(e){ console.error(e); setSyncStatus('error'); alert('ซิงค์ล้มเหลว'); }
+});
+document.getElementById('btnExport').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'income-expense-backup.json'; a.click(); URL.revokeObjectURL(a.href);
+});
+document.getElementById('fileImport').addEventListener('change', (e)=>{
+  const f = e.target.files?.[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => { try{ const s = JSON.parse(rd.result); apply(s, {skipSync:true}); alert('นำเข้าแล้ว'); }catch(err){ alert('ไฟล์ไม่ถูกต้อง'); } };
+  rd.readAsText(f);
+});
 </script>
 </body>
 </html>
